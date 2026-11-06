@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Card Clash - UNO</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+<style>
+*{box-sizing:border-box}
+:root{--bg:#101827;--panel:#1b2940;--text:#f4f7ff;--muted:#9eabc1}
+body{margin:0;background:radial-gradient(circle at 50% 20%,#263e58,#101827 65%);color:var(--text);font-family:Arial,sans-serif;min-height:100vh}
+button{font:inherit;cursor:pointer;border:0}
+button:disabled{cursor:not-allowed}
+#app{max-width:1100px;margin:auto;padding:14px}
+header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.logo{font-size:27px;font-weight:1000;letter-spacing:1px}
+.logo span{color:#ffcf45}
+.pill{background:#263750;padding:9px 13px;border-radius:30px;color:#dce8fa;font-size:13px}
+
+.header-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fullscreen-btn{
+ background:#30435f;color:white;padding:9px 13px;
+ border:1px solid #536783;border-radius:30px;
+ font-size:13px;font-weight:800
+}
+.fullscreen-btn:hover{filter:brightness(1.2)}
+
+#menu{max-width:560px;margin:5vh auto;background:#1b2940;border:1px solid #40516c;border-radius:22px;padding:30px;text-align:center;box-shadow:0 20px 60px #0005}
+#menu h1{font-size:48px;margin:5px 0;color:#ffcf45}
+#menu p{color:#bdc9dc;line-height:1.5}
+.menu-cards{display:flex;justify-content:center;gap:8px;margin:25px}
+.mini{width:58px;height:86px;border:3px solid white;border-radius:10px;display:grid;place-items:center;font-size:27px;font-weight:900;transform:rotate(-8deg);box-shadow:0 5px 10px #0005;background:#e34444}
+.mini:nth-child(2){transform:rotate(3deg);background:#2479df}
+.mini:nth-child(3){transform:rotate(10deg);background:#269b61}
+.red{background:#e34444}.blue{background:#2678db}.green{background:#239d61}.yellow{background:#e8b72c;color:#182238}
+.primary{background:#ffcf45;color:#172033;padding:14px 25px;border-radius:12px;font-weight:900;font-size:16px}
+.primary:hover{filter:brightness(1.08);transform:translateY(-1px)}
+select,input{background:#263750;color:white;border:1px solid #536783;padding:12px;border-radius:10px;margin:8px;max-width:100%}
+input{width:230px}
+.menu-section{background:#24354e;border:1px solid #40516c;border-radius:15px;padding:17px;margin:15px 0}
+.menu-section h3{margin:3px 0 12px;color:#ffcf45}
+.menu-section p{font-size:13px;margin:7px}
+.menu-buttons{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.secondary{background:#30435f;color:white;padding:12px 18px;border-radius:10px;font-weight:800}
+.secondary:hover,.action:hover{filter:brightness(1.15)}
+#onlineStatus{min-height:22px;color:#ffcf45;font-size:13px;margin:10px}
+#lobby{display:none;background:#24354e;padding:14px;border-radius:14px;margin-top:12px}
+#lobbyPlayers{line-height:1.8;color:#dce8fa}
+
+/* OFFLINE / ONLINE MENU TABS */
+.mode-tabs{display:flex;gap:10px;margin:25px 0 15px}
+.mode-tab{flex:1;padding:15px 10px;border-radius:12px;background:#263750;color:white;font-size:15px;font-weight:900;border:2px solid transparent;transition:.15s}
+.mode-tab:hover{filter:brightness(1.2)}
+.mode-tab.active{background:#ffcf45;color:#172033;border-color:#ffe58a;box-shadow:0 5px 15px #0003}
+.mode-panel{display:none}
+.mode-panel.active{display:block}
+.mode-panel h3{margin-top:3px}
+
+#game{display:none}
+#status{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:15px 0}
+.opponents{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:12px 0}
+.opponent{background:#1b2940;border:1px solid #3a4b64;border-radius:14px;padding:12px;text-align:center;min-height:82px}
+.opponent.active{border:2px solid #ffcf45;background:#293b55}
+.opponent .name{font-weight:800}
+.opponent .count{font-size:13px;color:#bdc9dc;margin-top:6px}
+.opponent .backs{display:flex;justify-content:center;margin-top:8px}
+.back{width:23px;height:34px;border:2px solid white;border-radius:5px;background:repeating-linear-gradient(45deg,#253f75,#253f75 4px,#f4c94d 5px,#253f75 7px);margin-left:-7px}
+.table{background:radial-gradient(ellipse,#24734f,#15543c);border:7px solid #9a7143;border-radius:45% / 35%;min-height:220px;margin:14px auto;padding:25px;display:flex;align-items:center;justify-content:center;gap:35px;position:relative;max-width:720px;box-shadow:inset 0 0 25px #0005,0 8px 25px #0004}
+.pile{display:flex;flex-direction:column;align-items:center;gap:8px}
+.pile small{font-weight:700;color:#e2f4e9}
+.card{width:76px;height:112px;border:4px solid white;border-radius:12px;display:flex;align-items:center;justify-content:center;position:relative;color:white;font-size:32px;font-weight:1000;text-shadow:1px 2px 2px #0005;box-shadow:0 5px 10px #0004;flex-shrink:0;overflow:hidden}
+.card:before{content:"";position:absolute;width:50px;height:76px;border:3px solid #ffffffaa;border-radius:50%;transform:rotate(-28deg)}
+.card .value{position:relative;z-index:1}
+.card .corner{position:absolute;font-size:12px;top:5px;left:7px;z-index:2}
+.card.yellow{color:#19243a;text-shadow:none}
+.deck{background:repeating-linear-gradient(45deg,#182a55,#182a55 7px,#f2c83e 8px,#182a55 11px);cursor:pointer}
+.deck:after{content:"UNO";font-size:20px;color:white;font-weight:1000;background:#e33e43;border:3px solid white;border-radius:50%;padding:7px;transform:rotate(-25deg);z-index:1}
+#direction{font-size:25px}
+#message{text-align:center;min-height:25px;color:#ffdb69;font-weight:700;margin:8px}
+#playerArea{background:#1b2940;border:1px solid #3a4b64;border-radius:18px;padding:14px;margin-top:12px}
+.player-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.player-top strong{font-size:17px}
+.hand{display:flex;justify-content:center;align-items:center;gap:7px;flex-wrap:wrap;padding:18px 4px 8px;min-height:135px}
+.hand .card{width:67px;height:100px;font-size:27px;cursor:pointer;transition:transform .15s}
+.hand button{padding:0;background:none;border:0}
+.hand button:hover .card{transform:translateY(-9px)}
+.hand button:disabled{cursor:not-allowed;filter:brightness(.55)}
+.controls{display:flex;justify-content:center;gap:9px;flex-wrap:wrap;margin-top:8px}
+.action{background:#30435f;color:white;padding:11px 16px;border-radius:10px;font-weight:800}
+.action:disabled{opacity:.35;cursor:not-allowed}
+.action.gold{background:#ffcf45;color:#182238}
+.action.uno{background:#e34444;color:white}
+#colorPicker{display:none;position:fixed;inset:0;background:#000a;z-index:5;align-items:center;justify-content:center;padding:20px}
+.picker-box{background:#1b2940;padding:25px;border-radius:20px;text-align:center;border:1px solid #52627c}
+.color-options{display:flex;gap:12px;margin-top:18px}
+.color-choice{width:58px;height:58px;border-radius:13px;border:3px solid white}
+#result{display:none;position:fixed;inset:0;background:#000b;z-index:10;align-items:center;justify-content:center;padding:20px}
+.result-box{background:#1b2940;padding:35px;border-radius:20px;text-align:center;max-width:400px;width:100%}
+.result-box h2{font-size:35px;color:#ffcf45}
+#roomCode{font-size:27px;font-weight:1000;letter-spacing:5px;color:#ffcf45;margin:12px}
+
+@media(max-width:600px){
+ #app{padding:9px}
+ .logo{font-size:22px}
+ .header-actions{width:100%;justify-content:space-between}
+ .fullscreen-btn{padding:9px 11px;font-size:12px}
+ .opponents{grid-template-columns:repeat(3,1fr);gap:5px}
+ .opponent{padding:9px 3px;font-size:12px;min-height:72px}
+ .table{min-height:180px;gap:20px;padding:15px;border-width:5px}
+ .card{width:65px;height:96px}
+ .hand{gap:5px;padding-top:15px}
+ .hand .card{width:52px;height:79px;font-size:22px;border-width:3px}
+ .hand .card:before{width:34px;height:55px}
+ .hand .card .corner{font-size:9px;top:3px;left:4px}
+ #menu{margin:4vh auto;padding:18px}
+ #menu h1{font-size:40px}
+ .color-choice{width:48px;height:48px}
+ .mode-tab{font-size:13px;padding:13px 6px}
+}
+</style>
+</head>
+
+<body>
+<div id="app">
+<header>
+ <div class="logo">CARD <span>CLASH</span> 🃏</div>
+ <div class="header-actions">
+  <div class="pill">UNO EDITION</div>
+  <button class="fullscreen-btn" id="fullscreenBtn" onclick="toggleFullscreen()">⛶ FULLSCREEN</button>
+ </div>
+</header>
+
+<section id="menu">
+ <h1>UNO!</h1>
+ <p>Match colours, match numbers, use action cards and be the first to empty your hand!</p>
+ <div class="menu-cards">
+  <div class="mini">7</div><div class="mini">↻</div><div class="mini">+2</div>
+ </div>
+
+ <div class="mode-tabs">
+  <button class="mode-tab active" id="offlineTab" onclick="showMode('offline')">🎮 OFFLINE</button>
+  <button class="mode-tab" id="onlineTab" onclick="showMode('online')">🌐 ONLINE</button>
+ </div>
+
+ <div class="menu-section mode-panel active" id="offlinePanel">
+  <h3>🎮 OFFLINE GAME</h3>
+  <p>Play against computer-controlled opponents.</p>
+  <label for="players">Number of players</label><br>
+  <select id="players">
+   <option value="2">2 Players (You + 1 Bot)</option>
+   <option value="3">3 Players (You + 2 Bots)</option>
+   <option value="4" selected>4 Players (You + 3 Bots)</option>
+  </select><br>
+  <button class="primary" onclick="startGame()">START OFFLINE GAME</button>
+ </div>
+
+ <div class="menu-section mode-panel" id="onlinePanel">
+  <h3>🌐 ONLINE MULTIPLAYER</h3>
+  <p>Create a room and share its code with friends, or join their room.</p>
+  <div class="menu-buttons">
+   <button class="primary" onclick="createRoom()">CREATE ROOM</button>
+  </div>
+  <p>OR JOIN A ROOM</p>
+  <input id="joinCode" maxlength="6" placeholder="ENTER ROOM CODE">
+  <br>
+  <input id="playerName" maxlength="14" placeholder="Your player name">
+  <br>
+  <button class="secondary" onclick="joinRoom()">JOIN ROOM</button>
+  <div id="onlineStatus"></div>
+  <div id="lobby">
+   <h3>ROOM LOBBY</h3>
+   <div>Your room code:</div>
+   <div id="roomCode">------</div>
+   <div id="lobbyPlayers"></div>
+   <p id="lobbyInfo">Waiting for players...</p>
+   <button class="primary" id="startOnlineBtn" onclick="startOnline()" style="display:none">START GAME</button>
+   <button class="secondary" onclick="leaveRoom()">LEAVE ROOM</button>
+  </div>
+ </div>
+</section>
+
+<section id="game">
+ <div id="status">
+  <div class="pill" id="turnLabel">Your turn</div>
+  <div class="pill" id="colorLabel">Current colour: Red</div>
+  <div class="pill" id="roundLabel">Round 1</div>
+ </div>
+ <div class="opponents" id="opponents"></div>
+ <div class="table">
+  <div class="pile">
+   <div class="card deck" id="drawDeck" onclick="drawCard()"></div>
+   <small>DRAW PILE</small>
+  </div>
+  <div class="pile">
+   <div id="discardCard"></div>
+   <small>DISCARD PILE</small>
+  </div>
+  <div id="direction">➡️</div>
+ </div>
+ <div id="message">Your turn. Play a card!</div>
+ <div id="playerArea">
+  <div class="player-top">
+   <strong>🙋 <span id="myName">Your hand</span> <span id="handCount"></span></strong>
+   <span class="pill" id="activeColour">RED</span>
+  </div>
+  <div class="hand" id="hand"></div>
+  <div class="controls">
+   <button class="action gold" id="drawBtn" onclick="drawCard()">DRAW CARD</button>
+   <button class="action uno" id="unoBtn" onclick="callUno()" disabled>UNO!</button>
+   <button class="action" onclick="newGame()">NEW GAME</button>
+  </div>
+ </div>
+</section>
+</div>
+
+<div id="colorPicker">
+ <div class="picker-box">
+  <h2>Choose a colour</h2>
+  <p>Pick the colour to continue playing.</p>
+  <div class="color-options">
+   <button class="color-choice red" onclick="chooseColor('red')"></button>
+   <button class="color-choice blue" onclick="chooseColor('blue')"></button>
+   <button class="color-choice green" onclick="chooseColor('green')"></button>
+   <button class="color-choice yellow" onclick="chooseColor('yellow')"></button>
+  </div>
+ </div>
+</div>
+
+<div id="result">
+ <div class="result-box">
+  <h2 id="resultTitle">YOU WIN!</h2>
+  <p id="resultText"></p>
+  <button class="primary" onclick="newGame()">PLAY AGAIN</button>
+ </div>
+</div>
+
+<script>
+/* FULLSCREEN */
+async function toggleFullscreen(){
+ try{
+  if(!document.fullscreenElement){
+   const target=document.documentElement;
+   if(target.requestFullscreen){
+    await target.requestFullscreen();
+   }else if(target.webkitRequestFullscreen){
+    target.webkitRequestFullscreen();
+   }else{
+    alert('Fullscreen is not supported by this browser.');
+   }
+  }else{
+   if(document.exitFullscreen){
+    await document.exitFullscreen();
+   }else if(document.webkitExitFullscreen){
+    document.webkitExitFullscreen();
+   }
+  }
+ }catch(error){
+  alert('Fullscreen could not be activated. Try using your browser fullscreen shortcut.');
+ }
+}
+
+function updateFullscreenButton(){
+ const btn=document.getElementById('fullscreenBtn');
+ if(!btn)return;
+ const active=document.fullscreenElement||document.webkitFullscreenElement;
+ btn.textContent=active?'✕ EXIT FULLSCREEN':'⛶ FULLSCREEN';
+}
+document.addEventListener('fullscreenchange',updateFullscreenButton);
+document.addEventListener('webkitfullscreenchange',updateFullscreenButton);
+
+/* GAME */
+const COLORS=['red','blue','green','yellow'];
+const SYMBOLS={skip:'⊘',reverse:'↻',draw2:'+2',wild:'★',wild4:'+4'};
+
+let players=[],discard=[],drawPile=[],current=0,direction=1;
+let currentColor='red',gameOver=false,locked=false,round=1;
+let pending=null,drawnCard=null,unoPending=false;
+let mode='offline',myIndex=0,host=false,onlineStarted=false;
+let peer=null,connection=null,connections=new Map();
+let roomCode='',roomPeerId='',joining=false;
+let nextPlayerId=1;
+
+const $=id=>document.getElementById(id);
+const isOnline=()=>mode==='online';
+const localTurn=()=>current===myIndex;
+const cardName=c=>SYMBOLS[c.value]||c.value;
+
+function showMode(selected){
+ const offline=selected==='offline';
+ $('offlinePanel').classList.toggle('active',offline);
+ $('onlinePanel').classList.toggle('active',!offline);
+ $('offlineTab').classList.toggle('active',offline);
+ $('onlineTab').classList.toggle('active',!offline);
+}
+
+function makeCard(color,value){
+ return {id:Math.random().toString(36).slice(2)+Date.now().toString(36),color,value};
+}
+function shuffle(a){
+ for(let i=a.length-1;i>0;i--){
+  const j=Math.floor(Math.random()*(i+1));
+  [a[i],a[j]]=[a[j],a[i]];
+ }
+ return a;
+}
+function createDeck(){
+ let deck=[];
+ COLORS.forEach(color=>{
+  deck.push(makeCard(color,'0'));
+  for(let n=1;n<=9;n++){
+   deck.push(makeCard(color,String(n)),makeCard(color,String(n)));
+  }
+  ['skip','reverse','draw2'].forEach(v=>{
+   deck.push(makeCard(color,v),makeCard(color,v));
+  });
+ });
+ for(let i=0;i<4;i++){
+  deck.push(makeCard('wild','wild'),makeCard('wild','wild4'));
+ }
+ return shuffle(deck);
+}
+function cardHTML(card){
+ return `<div class="card ${card.color}"><span class="corner">${cardName(card)}</span><span class="value">${cardName(card)}</span></div>`;
+}
+function topCard(){return discard[discard.length-1]}
+function isPlayable(card){
+ return card.color==='wild'||card.color===currentColor||card.value===topCard().value;
+}
+function say(message){$('message').textContent=message}
+
+function startGame(){
+ cleanupOnline();
+ mode='offline';host=false;myIndex=0;onlineStarted=false;
+ const count=Number($('players').value);
+ players=[{name:'You',hand:[],human:true}];
+ for(let i=1;i<count;i++)players.push({name:'Bot '+i,hand:[],human:false});
+ round=1;
+ $('menu').style.display='none';
+ $('game').style.display='block';
+ $('result').style.display='none';
+ setupRound();
+}
+function setupRound(){
+ gameOver=false;locked=false;pending=null;drawnCard=null;unoPending=false;
+ direction=1;current=0;currentColor='red';
+ drawPile=createDeck();discard=[];
+ players.forEach(p=>p.hand=[]);
+ players.forEach(p=>{for(let i=0;i<7;i++)p.hand.push(drawPile.pop())});
+ let first=drawPile.pop();
+ while(first.color==='wild'){
+  drawPile.unshift(first);first=drawPile.pop();
+ }
+ discard.push(first);currentColor=first.color;
+ resetDrawButton();
+ render();
+ say('Your turn. Play a card!');
+ if(isOnline())sync();
+}
+function newGame(){
+ $('result').style.display='none';
+ $('game').style.display='none';
+ $('menu').style.display='block';
+ $('colorPicker').style.display='none';
+ cleanupOnline();
+ mode='offline';
+ showMode('offline');
+}
+function resetDrawButton(){
+ const b=$('drawBtn');
+ b.textContent='DRAW CARD';
+ b.onclick=drawCard;
+}
+function drawOne(player){
+ if(drawPile.length===0){
+  if(discard.length>1){
+   const top=discard.pop();
+   drawPile=shuffle(discard);
+   discard=[top];
+  }else return null;
+ }
+ const card=drawPile.pop();
+ player.hand.push(card);
+ return card;
+}
+function nextIndex(index){
+ return (index+direction+players.length)%players.length;
+}
+function advance(steps){
+ if(gameOver)return;
+ current=(current+direction*steps+players.length*10)%players.length;
+ drawnCard=null;unoPending=false;locked=false;pending=null;
+ $('colorPicker').style.display='none';
+ resetDrawButton();
+ render();
+ if(isOnline()){
+  sync();
+  return;
+ }
+ if(current!==0)setTimeout(botTurn,650);
+ else say('Your turn. Play a card or draw one.');
+}
+function render(){
+ if(gameOver||!players.length||!discard.length)return;
+ const me=players[myIndex];
+ $('turnLabel').textContent=localTurn()?'Your turn':players[current].name+"'s turn";
+ $('colorLabel').textContent='Current colour: '+currentColor.toUpperCase();
+ $('activeColour').textContent=currentColor.toUpperCase();
+ $('roundLabel').textContent='Round '+round;
+ $('direction').textContent=direction===1?'➡️':'⬅️';
+ $('discardCard').innerHTML=cardHTML(topCard());
+ $('handCount').textContent='('+me.hand.length+')';
+ $('myName').textContent=me.name+"'s hand";
+ $('opponents').innerHTML=players.map((p,i)=>{
+  if(i===myIndex)return '';
+  const count=isOnline()?(p.count??p.hand.length):p.hand.length;
+  return `<div class="opponent ${current===i?'active':''}">
+   <div class="name">${isOnline()?'👤':'🤖'} ${escapeHTML(p.name)}</div>
+   <div class="count">${count} cards</div>
+   <div class="backs">${Array.from({length:Math.min(count,5)},()=>'<div class="back"></div>').join('')}</div>
+  </div>`;
+ }).join('');
+ const canPlay=localTurn()&&!locked&&!gameOver;
+ $('hand').innerHTML=me.hand.map(card=>{
+  const playable=canPlay&&isPlayable(card)&&
+   (!drawnCard||drawnCard.player!==myIndex||
+   card.id===(drawnCard.card?.id||drawnCard.id));
+  return `<button ${playable?'':'disabled'} onclick="playPlayerCard('${card.id}')">${cardHTML(card)}</button>`;
+ }).join('');
+ $('drawBtn').disabled=!canPlay;
+ $('unoBtn').disabled=!(isOnline()?unoPending&&pending?.player===myIndex:unoPending&&myIndex===0);
+ $('drawDeck').style.opacity=canPlay&&!drawnCard?'1':'.65';
+ if(drawnCard&&drawnCard.player===myIndex){
+  $('drawBtn').textContent='PASS TURN';
+  $('drawBtn').onclick=passTurn;
+ }else resetDrawButton();
+}
+function playPlayerCard(id){
+ if(!localTurn()||locked||gameOver)return;
+ if(isOnline()&&!host){sendAction({action:'play',id});return}
+ playCard(myIndex,id);
+}
+function playCard(index,id){
+ if(current!==index||locked||gameOver)return;
+ const p=players[index];
+ const card=p.hand.find(c=>c.id===id);
+ if(!card||!isPlayable(card))return;
+ if(drawnCard&&drawnCard.player===index&&card.id!==drawnCard.card.id){
+  say('You can only play the card you just drew.');
+  return;
+ }
+ p.hand=p.hand.filter(c=>c.id!==id);
+ drawnCard=null;
+ resetDrawButton();
+ discard.push(card);
+ if(p.hand.length===0){finish(index);return}
+ if(p.hand.length===1){
+  unoPending=true;
+  locked=true;
+  pending={card,player:index};
+  say(players[index].name+' has one card left! Press UNO!');
+  render();
+  if(isOnline())sync();
+  return;
+ }
+ resolveCard(card,index);
+}
+function callUno(){
+ if(!unoPending||!pending||pending.player!==myIndex)return;
+ if(isOnline()&&!host){sendAction({action:'uno'});return}
+ executeUno();
+}
+function executeUno(){
+ if(!unoPending||!pending)return;
+ unoPending=false;locked=false;
+ const info=pending;pending=null;
+ say(players[info.player].name+' calls UNO!');
+ resolveCard(info.card,info.player);
+}
+function resolveCard(card,index){
+ if(card.color==='wild'){
+  locked=true;
+  pending={card,player:index};
+  if(isOnline()){
+   if(index===myIndex){
+    $('colorPicker').style.display='flex';
+   }else{
+    say(players[index].name+' is choosing a colour...');
+   }
+   render();sync();
+  }else if(index===0){
+   $('colorPicker').style.display='flex';
+   render();
+  }else{
+   const color=chooseBotColor(players[index]);
+   finishEffect(card,index,color);
+  }
+  return;
+ }
+ finishEffect(card,index,card.color);
+}
+function chooseColor(color){
+ if(!locked||!pending)return;
+ if(isOnline()&&!host){sendAction({action:'color',color});return}
+ const info=pending;
+ $('colorPicker').style.display='none';
+ pending=null;locked=false;
+ say(players[info.player].name+' chose '+color.toUpperCase()+'.');
+ finishEffect(info.card,info.player,color);
+}
+function chooseBotColor(player){
+ const counts={red:0,blue:0,green:0,yellow:0};
+ player.hand.forEach(c=>{if(c.color!=='wild')counts[c.color]++});
+ return COLORS.slice().sort((a,b)=>counts[b]-counts[a])[0];
+}
+function finishEffect(card,index,chosenColor){
+ currentColor=chosenColor;
+ let skip=0;
+ if(card.value==='reverse'){
+  direction*=-1;
+  if(players.length===2)skip=1;
+ }else if(card.value==='skip')skip=1;
+ else if(card.value==='draw2'||card.value==='wild4'){
+  const target=nextIndex(index);
+  const amount=card.value==='draw2'?2:4;
+  for(let i=0;i<amount;i++)drawOne(players[target]);
+  skip=1;
+  say(players[target].name+' draws '+amount+' cards!');
+ }
+ if(players[index].hand.length===0){finish(index);return}
+ advance(1+skip);
+}
+function drawCard(){
+ if(!localTurn()||locked||gameOver||drawnCard)return;
+ if(isOnline()&&!host){sendAction({action:'draw'});return}
+ const card=drawOne(players[myIndex]);
+ if(!card){say('No cards left to draw.');return}
+ drawnCard={card,player:myIndex};
+ if(isPlayable(card)){
+  say('You drew a playable card. Play it or pass.');
+ }else{
+  say('You drew a card. Turn passed.');
+  drawnCard=null;
+  advance(1);
+  return;
+ }
+ render();
+ if(isOnline())sync();
+}
+function passTurn(){
+ if(!drawnCard||drawnCard.player!==myIndex||!localTurn())return;
+ if(isOnline()&&!host){
+  sendAction({action:'pass'});
+  return;
+ }
+ drawnCard=null;
+ resetDrawButton();
+ advance(1);
+}
+function botTurn(){
+ if(gameOver||isOnline()||current===0||locked)return;
+ const p=players[current];
+ const playable=p.hand.filter(isPlayable);
+ if(playable.length){
+  let card=playable.find(c=>c.value==='wild4')||
+   playable.find(c=>c.value==='draw2')||
+   playable.find(c=>c.value==='skip')||
+   playable.find(c=>c.value==='reverse')||playable[0];
+  p.hand=p.hand.filter(c=>c.id!==card.id);
+  discard.push(card);
+  say(p.name+' played '+cardName(card)+'.');
+  if(p.hand.length===0){finish(current);return}
+  if(p.hand.length===1)say(p.name+' calls UNO!');
+  if(card.color==='wild'){
+   const color=chooseBotColor(p);
+   finishEffect(card,current,color);
+  }else finishEffect(card,current,card.color);
+ }else{
+  drawOne(p);
+  say(p.name+' draws a card.');
+  advance(1);
+ }
+ render();
+}
+function finish(index){
+ gameOver=true;
+ locked=true;
+ $('colorPicker').style.display='none';
+ $('resultTitle').textContent=index===myIndex?'YOU WIN! 🎉':players[index].name+' WINS!';
+ $('resultText').textContent=index===myIndex?'Amazing! You emptied your hand first.':'Better luck next time. Try another round!';
+ $('result').style.display='flex';
+ if(isOnline())sync();
+}
+
+/* ONLINE MULTIPLAYER */
+
+function setOnlineStatus(msg){$('onlineStatus').textContent=msg}
+function playerDisplayName(){
+ return ($('playerName').value.trim()||'Player').slice(0,14);
+}
+function createRoom(){
+ cleanupOnline();
+ if(typeof Peer==='undefined'){
+  setOnlineStatus('Could not load PeerJS. Check your internet connection.');
+  return;
+ }
+ mode='online';host=true;myIndex=0;joining=false;
+ roomCode=Math.random().toString(36).substring(2,8).toUpperCase();
+ roomPeerId='cardclash-'+roomCode.toLowerCase();
+ players=[{name:playerDisplayName(),hand:[],human:true,count:0}];
+ setOnlineStatus('Creating room...');
+ peer=new Peer(roomPeerId);
+ peer.on('open',()=>{
+  $('lobby').style.display='block';
+  $('roomCode').textContent=roomCode;
+  $('startOnlineBtn').style.display='inline-block';
+  $('lobbyInfo').textContent='Share this code with your friends.';
+  setOnlineStatus('Room created successfully!');
+  updateLobby();
+ });
+ peer.on('connection',conn=>{
+  if(onlineStarted||players.length>=4){
+   conn.on('open',()=>conn.send({type:'reject',message:'Room is full or game has started.'}));
+   return;
+  }
+  const index=players.length;
+  players.push({name:'Connecting...',hand:[],human:true,count:0});
+  connections.set(index,conn);
+  conn.on('open',()=>sendLobby());
+  conn.on('data',data=>hostReceive(data,index));
+  conn.on('close',()=>{
+   if(!onlineStarted){
+    players.splice(index,1);
+    const updated=new Map();
+    connections.forEach((c,i)=>{
+     if(i!==index)updated.set(i>index?i-1:i,c);
+    });
+    connections=updated;
+    sendLobby();
+   }else{
+    say(players[index]?.name+' disconnected.');
+   }
+  });
+ });
+ peer.on('error',err=>{
+  setOnlineStatus('Connection error: '+err.type+'. Try creating another room.');
+ });
+}
+function joinRoom(){
+ cleanupOnline();
+ if(typeof Peer==='undefined'){
+  setOnlineStatus('Could not load PeerJS. Check your internet connection.');
+  return;
+ }
+ const code=$('joinCode').value.trim().toUpperCase();
+ if(!/^[A-Z0-9]{6}$/.test(code)){
+  setOnlineStatus('Enter a valid 6-character room code.');
+  return;
+ }
+ mode='online';host=false;joining=true;roomCode=code;
+ setOnlineStatus('Connecting to room...');
+ peer=new Peer();
+ peer.on('open',()=>{
+  connection=peer.connect('cardclash-'+code.toLowerCase(),{reliable:true});
+  connection.on('open',()=>{
+   connection.send({type:'join',name:playerDisplayName()});
+   setOnlineStatus('Connected. Waiting for the host...');
+  });
+  connection.on('data',data=>guestReceive(data));
+  connection.on('close',()=>setOnlineStatus('Connection closed.'));
+ });
+ peer.on('error',err=>setOnlineStatus('Could not connect: '+err.type+'. Check the room code.'));
+}
+function sendLobby(){
+ if(!host)return;
+ const names=players.map(p=>p.name);
+ connections.forEach(c=>{if(c.open)c.send({type:'lobby',names,code:roomCode})});
+ updateLobby();
+}
+function updateLobby(names){
+ if(names&&!host){
+  players=names.map((name,i)=>({name,hand:[],human:true,count:0}));
+ }
+ $('lobby').style.display='block';
+ $('roomCode').textContent=roomCode;
+ $('lobbyPlayers').innerHTML=players.map((p,i)=>`${i+1}. ${escapeHTML(p.name)}${i===0?' (Host)':''}`).join('<br>');
+ $('lobbyInfo').textContent=players.length+'/4 players in room';
+ $('startOnlineBtn').style.display=host?'inline-block':'none';
+}
+function startOnline(){
+ if(!host||players.length<2)return;
+ onlineStarted=true;
+ $('menu').style.display='none';
+ $('game').style.display='block';
+ $('lobby').style.display='none';
+ connections.forEach((c,index)=>{
+  if(c.open)c.send({type:'start',index});
+ });
+ round=1;
+ setupRound();
+}
+function leaveRoom(){
+ cleanupOnline();
+ $('lobby').style.display='none';
+ setOnlineStatus('You left the room.');
+ showMode('online');
+}
+function cleanupOnline(){
+ try{if(connection)connection.close()}catch(e){}
+ try{if(peer)peer.destroy()}catch(e){}
+ connections.forEach(c=>{try{c.close()}catch(e){}});
+ connections.clear();
+ peer=null;connection=null;
+ host=false;onlineStarted=false;joining=false;
+ players=[];drawPile=[];discard=[];
+}
+function sendAction(action){
+ if(connection&&connection.open)connection.send({type:'action',action});
+ else say('Not connected to the host.');
+}
+function hostReceive(data,index){
+ if(!host||!data)return;
+ if(data.type==='join'){
+  if(!players[index])return;
+  players[index].name=String(data.name||'Player').slice(0,14);
+  sendLobby();
+  return;
+ }
+ if(data.type==='action'&&onlineStarted){
+  handleOnlineAction(data.action,index);
+ }
+}
+function handleOnlineAction(action,index){
+ if(!action||gameOver)return;
+ if(action.action==='uno'){
+  if(unoPending&&pending&&pending.player===index&&current===index)executeUno();
+  return;
+ }
+ if(action.action==='color'){
+  if(locked&&pending&&pending.player===index&&pending.card.color==='wild'&&COLORS.includes(action.color)){
+   const info=pending;pending=null;locked=false;
+   say(players[index].name+' chose '+action.color.toUpperCase()+'.');
+   finishEffect(info.card,index,action.color);
+  }
+  return;
+ }
+ if(current!==index||locked)return;
+ if(action.action==='play')playCard(index,action.id);
+ if(action.action==='draw')drawForPlayer(index);
+ if(action.action==='pass'&&drawnCard&&drawnCard.player===index){
+  drawnCard=null;advance(1);
+ }
+}
+function drawForPlayer(index){
+ if(current!==index||locked||drawnCard)return;
+ const card=drawOne(players[index]);
+ if(!card){say('No cards left to draw.');return}
+ drawnCard={card,player:index};
+ if(isPlayable(card)){
+  say(players[index].name+' drew a playable card.');
+  render();sync();
+ }else{
+  say(players[index].name+' drew a card. Turn passed.');
+  drawnCard=null;advance(1);
+ }
+}
+function makeSnapshot(index){
+ return {
+  type:'state',
+  players:players.map((p,i)=>({
+   name:p.name,
+   hand:i===index?p.hand:[],
+   count:p.hand.length
+  })),
+  current,direction,currentColor,
+  discard,round,gameOver,
+  drawnCard:drawnCard?{id:drawnCard.card.id,player:drawnCard.player}:null,
+  unoPending,locked,
+  pending:pending?{card:pending.card,player:pending.player}:null
+ };
+}
+function sync(){
+ if(!host)return;
+ connections.forEach((c,index)=>{
+  if(c.open)c.send(makeSnapshot(index));
+ });
+ render();
+}
+function guestReceive(data){
+ if(!data)return;
+ if(data.type==='reject'){
+  setOnlineStatus(data.message);return;
+ }
+ if(data.type==='lobby'){
+  roomCode=data.code||roomCode;
+  updateLobby(data.names);return;
+ }
+ if(data.type==='start'){
+  myIndex=data.index;
+  onlineStarted=true;
+  $('menu').style.display='none';
+  $('game').style.display='block';
+  $('lobby').style.display='none';
+  return;
+ }
+ if(data.type==='state')receiveState(data);
+}
+function receiveState(data){
+ players=data.players.map(p=>({
+  name:p.name,
+  hand:p.hand||[],
+  count:p.count,
+  human:true
+ }));
+ current=data.current;
+ direction=data.direction;
+ currentColor=data.currentColor;
+ discard=data.discard;
+ round=data.round;
+ gameOver=data.gameOver;
+ unoPending=data.unoPending;
+ locked=data.locked;
+ pending=data.pending;
+ drawnCard=data.drawnCard?{
+  card:{id:data.drawnCard.id},
+  player:data.drawnCard.player
+ }:null;
+ if(pending&&pending.card&&pending.card.color==='wild'&&pending.player===myIndex){
+  $('colorPicker').style.display='flex';
+ }else{
+  $('colorPicker').style.display='none';
+ }
+ if(gameOver){
+  $('resultTitle').textContent=current===myIndex?'YOU WIN! 🎉':'GAME OVER';
+  $('resultText').textContent='The round has finished.';
+  $('result').style.display='flex';
+ }
+ render();
+}
+
+/* SAFE DISPLAY OF PLAYER NAMES */
+function escapeHTML(str){
+ return String(str).replace(/[&<>"']/g,ch=>({
+  '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+ })[ch]);
+}
+</script>
+
+<script>
+/* CARD CLASH - LOCAL ACCOUNT SYSTEM */
+
+const CC_ACCOUNTS_KEY="cardClashAccounts_v1";
+const CC_SESSION_KEY="cardClashSession_v1";
+
+const CC_ACHIEVEMENTS=[
+ {id:"first",name:"First Victory",icon:"🥇",desc:"Win your first match."},
+ {id:"combo",name:"Nice Combo",icon:"🔥",desc:"Play 3 action cards in one match."},
+ {id:"streak",name:"Winning Streak",icon:"🏆",desc:"Win 3 matches in a row."},
+ {id:"five",name:"Getting Serious",icon:"⭐",desc:"Win 5 matches."},
+ {id:"ten",name:"UNO Champion",icon:"👑",desc:"Win 10 matches."},
+ {id:"twentyfive",name:"UNO Legend",icon:"💎",desc:"Win 25 matches."}
+];
+
+let ccUser=null;
+let ccMatchActions=0;
+
+function ccAccounts(){
+ try{return JSON.parse(localStorage.getItem(CC_ACCOUNTS_KEY))||{}}
+ catch(e){return {}}
+}
+function ccSaveAccounts(data){
+ localStorage.setItem(CC_ACCOUNTS_KEY,JSON.stringify(data));
+}
+async function ccHash(password){
+ const bytes=new TextEncoder().encode(password);
+ const hash=await crypto.subtle.digest("SHA-256",bytes);
+ return Array.from(new Uint8Array(hash)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+function ccCreateUI(){
+ const style=document.createElement("style");
+ style.textContent=`
+ #ccAuth{position:fixed;inset:0;z-index:1000;background:radial-gradient(circle at 50% 20%,#263e58,#101827 65%);display:flex;align-items:center;justify-content:center;padding:18px;font-family:Arial,sans-serif;color:white}
+ .cc-box{background:#1b2940;border:1px solid #40516c;border-radius:22px;padding:28px;width:100%;max-width:420px;text-align:center;box-shadow:0 20px 60px #0008}
+ .cc-box h1{color:#ffcf45;font-size:36px;margin:5px}
+ .cc-box input{display:block;width:100%;margin:12px 0;padding:14px;background:#263750;color:white;border:1px solid #536783;border-radius:10px}
+ .cc-btn{width:100%;padding:13px;margin-top:9px;border:0;border-radius:10px;background:#ffcf45;color:#172033;font-weight:900;cursor:pointer}
+ .cc-secondary{background:#30435f;color:white}
+ .cc-error{color:#ff8585;min-height:20px;font-size:13px}
+ #ccAccountBar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:12px 0}
+ .cc-small{background:#30435f;color:white;border:0;border-radius:9px;padding:9px 12px;cursor:pointer}
+ #ccAchievements{position:fixed;inset:0;z-index:900;background:#000b;display:none;align-items:center;justify-content:center;padding:15px}
+ .cc-ach-box{background:#1b2940;border:1px solid #52627c;border-radius:18px;padding:22px;max-width:470px;width:100%;max-height:85vh;overflow:auto}
+ .cc-ach{display:flex;align-items:center;gap:12px;background:#263750;padding:12px;border-radius:12px;margin:9px 0;text-align:left}
+ .cc-ach-icon{font-size:28px}
+ .cc-locked{opacity:.4}
+ #ccToast{position:fixed;z-index:1200;top:18px;left:50%;transform:translateX(-50%);background:#ffcf45;color:#172033;padding:13px 20px;border-radius:12px;font-weight:900;display:none;box-shadow:0 8px 25px #0006}
+ `;
+ document.head.appendChild(style);
+
+ const auth=document.createElement("div");
+ auth.id="ccAuth";
+ auth.innerHTML=`
+  <div class="cc-box">
+   <h1>CARD CLASH 🃏</h1>
+   <p id="ccAuthSubtitle">Create your player account</p>
+   <div id="ccSignupFields">
+    <input id="ccUsername" maxlength="16" placeholder="Choose a username">
+    <input id="ccPassword" type="password" placeholder="Create a password">
+   </div>
+   <div class="cc-error" id="ccError"></div>
+   <button class="cc-btn" id="ccSignup">CREATE ACCOUNT</button>
+   <button class="cc-btn cc-secondary" id="ccLogin">I ALREADY HAVE AN ACCOUNT</button>
+   <p style="font-size:11px;color:#9eabc1">Local account: progress is saved in this browser.</p>
+  </div>`;
+ document.body.appendChild(auth);
+
+ const achievements=document.createElement("div");
+ achievements.id="ccAchievements";
+ achievements.innerHTML=`
+  <div class="cc-ach-box">
+   <h2 style="color:#ffcf45;margin-top:0">🏆 ACHIEVEMENTS</h2>
+   <div id="ccStats"></div>
+   <div id="ccAchievementList"></div>
+   <button class="cc-btn" onclick="ccCloseAchievements()">CLOSE</button>
+  </div>`;
+ document.body.appendChild(achievements);
+
+ const toast=document.createElement("div");
+ toast.id="ccToast";
+ document.body.appendChild(toast);
+
+ const bar=document.createElement("div");
+ bar.id="ccAccountBar";
+ bar.innerHTML=`
+  <span class="pill" id="ccWelcome">Player</span>
+  <div style="display:flex;gap:7px">
+   <button class="cc-small" onclick="ccShowAchievements()">🏆 Achievements</button>
+   <button class="cc-small" onclick="ccLogout()">LOG OUT</button>
+  </div>`;
+ document.querySelector("#app header").after(bar);
+
+ document.getElementById("ccSignup").onclick=ccSignup;
+ document.getElementById("ccLogin").onclick=ccLogin;
+}
+function ccError(message){
+ document.getElementById("ccError").textContent=message;
+}
+function ccShowAuth(){
+ document.getElementById("ccAuth").style.display="flex";
+ document.getElementById("menu").style.display="none";
+ document.getElementById("game").style.display="none";
+ document.getElementById("ccAccountBar").style.display="none";
+}
+function ccShowGame(){
+ document.getElementById("ccAuth").style.display="none";
+ document.getElementById("ccAccountBar").style.display="flex";
+ document.getElementById("ccWelcome").textContent="👤 "+ccUser.name;
+ document.getElementById("menu").style.display="block";
+ showMode('offline');
+}
+async function ccSignup(){
+ const name=document.getElementById("ccUsername").value.trim();
+ const password=document.getElementById("ccPassword").value;
+
+ if(name.length<3)return ccError("Username needs at least 3 characters.");
+ if(password.length<6)return ccError("Password needs at least 6 characters.");
+ if(!crypto.subtle)return ccError("Password hashing needs HTTPS or localhost.");
+
+ const accounts=ccAccounts();
+ const key=name.toLowerCase();
+ if(accounts[key])return ccError("That username already exists.");
+
+ const hash=await ccHash(password);
+ accounts[key]={
+  name,passwordHash:hash,wins:0,matches:0,streak:0,
+  bestStreak:0,achievements:[],created:new Date().toISOString()
+ };
+ ccSaveAccounts(accounts);
+ localStorage.setItem(CC_SESSION_KEY,key);
+ ccUser=accounts[key];
+ ccShowGame();
+}
+async function ccLogin(){
+ const name=document.getElementById("ccUsername").value.trim();
+ const password=document.getElementById("ccPassword").value;
+ if(!name||!password)return ccError("Enter your username and password.");
+ if(!crypto.subtle)return ccError("Password hashing needs HTTPS or localhost.");
+
+ const accounts=ccAccounts();
+ const key=name.toLowerCase();
+ const account=accounts[key];
+ if(!account)return ccError("Account not found on this device.");
+
+ const hash=await ccHash(password);
+ if(hash!==account.passwordHash)return ccError("Incorrect password.");
+
+ ccUser=account;
+ localStorage.setItem(CC_SESSION_KEY,key);
+ ccShowGame();
+}
+function ccLogout(){
+ if(typeof cleanupOnline==="function")cleanupOnline();
+ ccUser=null;
+ localStorage.removeItem(CC_SESSION_KEY);
+ document.getElementById("game").style.display="none";
+ document.getElementById("result").style.display="none";
+ document.getElementById("lobby").style.display="none";
+ document.getElementById("colorPicker").style.display="none";
+ ccShowAuth();
+}
+function ccUpdateAccount(){
+ if(!ccUser)return;
+ const accounts=ccAccounts();
+ const key=localStorage.getItem(CC_SESSION_KEY);
+ if(!key||!accounts[key])return;
+ accounts[key]=ccUser;
+ ccSaveAccounts(accounts);
+}
+function ccUnlock(id){
+ if(!ccUser||ccUser.achievements.includes(id))return;
+ ccUser.achievements.push(id);
+ ccUpdateAccount();
+
+ const achievement=CC_ACHIEVEMENTS.find(a=>a.id===id);
+ if(!achievement)return;
+
+ const toast=document.getElementById("ccToast");
+ toast.textContent="🏆 ACHIEVEMENT UNLOCKED: "+achievement.name;
+ toast.style.display="block";
+ setTimeout(()=>toast.style.display="none",2800);
+}
+function ccRecordWin(){
+ if(!ccUser)return;
+ ccUser.wins++;
+ ccUser.matches++;
+ ccUser.streak++;
+ ccUser.bestStreak=Math.max(ccUser.bestStreak,ccUser.streak);
+
+ ccUnlock("first");
+ if(ccUser.streak>=3)ccUnlock("streak");
+ if(ccUser.wins>=5)ccUnlock("five");
+ if(ccUser.wins>=10)ccUnlock("ten");
+ if(ccUser.wins>=25)ccUnlock("twentyfive");
+ ccUpdateAccount();
+}
+function ccRecordLoss(){
+ if(!ccUser)return;
+ ccUser.matches++;
+ ccUser.streak=0;
+ ccUpdateAccount();
+}
+function ccShowAchievements(){
+ if(!ccUser)return;
+ document.getElementById("ccStats").innerHTML=`
+  <p>🏆 Wins: <b>${ccUser.wins}</b></p>
+  <p>🎮 Matches: <b>${ccUser.matches}</b></p>
+  <p>🔥 Current streak: <b>${ccUser.streak}</b></p>
+  <p>⭐ Best streak: <b>${ccUser.bestStreak}</b></p>
+  <p>Unlocked: <b>${ccUser.achievements.length}/${CC_ACHIEVEMENTS.length}</b></p>`;
+
+ document.getElementById("ccAchievementList").innerHTML=
+ CC_ACHIEVEMENTS.map(a=>{
+  const unlocked=ccUser.achievements.includes(a.id);
+  return `<div class="cc-ach ${unlocked?"":"cc-locked"}">
+   <div class="cc-ach-icon">${a.icon}</div>
+   <div>
+    <b>${a.name} ${unlocked?"✓":"🔒"}</b>
+    <div style="font-size:12px;color:#bdc9dc">${a.desc}</div>
+   </div>
+  </div>`;
+ }).join("");
+ document.getElementById("ccAchievements").style.display="flex";
+}
+function ccCloseAchievements(){
+ document.getElementById("ccAchievements").style.display="none";
+}
+
+/* Track action cards played by the logged-in player. */
+const ccOriginalPlayCard=playCard;
+playCard=function(index,id){
+ const before=players[index]?.hand?.find(c=>c.id===id);
+ ccOriginalPlayCard(index,id);
+
+ if(!ccUser||gameOver||index!==myIndex||!before)return;
+ if(["skip","reverse","draw2","wild","wild4"].includes(before.value)){
+  ccMatchActions++;
+  if(ccMatchActions>=3)ccUnlock("combo");
+ }
+};
+
+/* Track match results, including online guest results. */
+const ccOriginalFinish=finish;
+finish=function(index){
+ if(!gameOver){
+  if(index===myIndex)ccRecordWin();
+  else ccRecordLoss();
+ }
+ ccOriginalFinish(index);
+};
+
+const ccOriginalReceiveState=receiveState;
+receiveState=function(data){
+ const wasOver=gameOver;
+ ccOriginalReceiveState(data);
+ if(!wasOver&&data.gameOver&&ccUser){
+  if(data.current===myIndex)ccRecordWin();
+  else ccRecordLoss();
+ }
+};
+
+/* Reset combo counter at the start of each round. */
+const ccOriginalSetupRound=setupRound;
+setupRound=function(){
+ ccMatchActions=0;
+ ccOriginalSetupRound();
+};
+
+/* Restore saved session on page load. */
+window.addEventListener("load",()=>{
+ ccCreateUI();
+
+ const saved=localStorage.getItem(CC_SESSION_KEY);
+ const accounts=ccAccounts();
+
+ if(saved&&accounts[saved]){
+  ccUser=accounts[saved];
+  ccShowGame();
+ }else{
+  ccShowAuth();
+ }
+});
+</script>
+</body>
+</html>
